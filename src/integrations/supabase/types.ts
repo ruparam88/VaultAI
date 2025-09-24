@@ -20,21 +20,33 @@ export type Database = {
           email: string
           id: string
           ip_address: string | null
+          is_verified: boolean
           user_agent: string | null
+          verification_sent_at: string | null
+          verification_token: string | null
+          verified_at: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
           ip_address?: string | null
+          is_verified?: boolean
           user_agent?: string | null
+          verification_sent_at?: string | null
+          verification_token?: string | null
+          verified_at?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
           ip_address?: string | null
+          is_verified?: boolean
           user_agent?: string | null
+          verification_sent_at?: string | null
+          verification_token?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }

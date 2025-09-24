@@ -43,34 +43,29 @@ const Hero = () => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('email_signups')
-        .insert([{ 
-          email: email.toLowerCase().trim(),
-          ip_address: null, // Could be populated with actual IP if needed
-          user_agent: navigator.userAgent 
-        }]);
+      const { data, error } = await supabase.functions.invoke('send-verification', {
+        body: { email: email.toLowerCase().trim() }
+      });
 
       if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          toast({
-            title: "Already registered!",
-            description: "This email is already on our waitlist.",
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
+        throw error;
+      }
+
+      if (data.error) {
+        toast({
+          title: "Signup failed",
+          description: data.error,
+          variant: "destructive",
+        });
       } else {
         setIsSubmitted(true);
-        setSignupCount(prev => prev + 1);
         toast({
-          title: "Thanks for joining!",
-          description: "We'll notify you when we launch.",
+          title: "Verification email sent!",
+          description: "Please check your inbox and click the verification link.",
         });
         setEmail("");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
       toast({
         title: "Something went wrong",
@@ -134,9 +129,12 @@ const Hero = () => {
                 </Button>
               </form>
             ) : (
-              <div className="flex items-center justify-center gap-2 text-primary">
-                <CheckCircle className="h-5 w-5" />
-                <span className="text-lg font-medium">You're on the list!</span>
+              <div className="space-y-4 flex flex-col items-center justify-center text-primary">
+                <CheckCircle className="h-8 w-8" />
+                <div className="text-center">
+                  <p className="text-lg font-medium">Verification email sent!</p>
+                  <p className="text-sm text-muted-foreground">Please check your inbox and click the verification link.</p>
+                </div>
               </div>
             )}
           </div>
@@ -144,7 +142,7 @@ const Hero = () => {
           <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span>{signupCount.toLocaleString()} early users</span>
+              <span>{signupCount.toLocaleString()} verified users</span>
             </div>
             <span>•</span>
             <span>Launching Q1 2025</span>
