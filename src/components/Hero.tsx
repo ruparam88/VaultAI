@@ -1,16 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, ArrowRight, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import heroImage from "@/assets/hero-bg.jpg";
 
 const Hero = () => {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [signupCount, setSignupCount] = useState<number>(0);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch current signup count
+  useEffect(() => {
+    const fetchSignupCount = async () => {
+      const { count, error } = await supabase
+        .from('email_signups')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!error && count !== null) {
+        setSignupCount(count);
+      }
+    };
+    
+    fetchSignupCount();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !email.includes("@")) {
@@ -22,14 +40,46 @@ const Hero = () => {
       return;
     }
 
-    // This is where you'd save to database with Supabase
-    setIsSubmitted(true);
-    toast({
-      title: "Thanks for joining!",
-      description: "We'll notify you when we launch.",
-    });
+    setIsLoading(true);
     
-    setEmail("");
+    try {
+      const { error } = await supabase
+        .from('email_signups')
+        .insert([{ 
+          email: email.toLowerCase().trim(),
+          ip_address: null, // Could be populated with actual IP if needed
+          user_agent: navigator.userAgent 
+        }]);
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          toast({
+            title: "Already registered!",
+            description: "This email is already on our waitlist.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        setIsSubmitted(true);
+        setSignupCount(prev => prev + 1);
+        toast({
+          title: "Thanks for joining!",
+          description: "We'll notify you when we launch.",
+        });
+        setEmail("");
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast({
+        title: "Something went wrong",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,8 +122,14 @@ const Hero = () => {
                     required
                   />
                 </div>
-                <Button type="submit" variant="hero" size="lg" className="h-12 px-8">
-                  Get Early Access
+                <Button 
+                  type="submit" 
+                  variant="hero" 
+                  size="lg" 
+                  className="h-12 px-8"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Joining..." : "Get Early Access"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </form>
@@ -88,7 +144,7 @@ const Hero = () => {
           <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span>1,247 early users</span>
+              <span>{signupCount.toLocaleString()} early users</span>
             </div>
             <span>•</span>
             <span>Launching Q1 2025</span>
